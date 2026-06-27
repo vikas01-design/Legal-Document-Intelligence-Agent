@@ -1,0 +1,912 @@
+{
+  "version": "1.0",
+  "diagramId": "exported",
+  "title": "Architecture Diagram",
+  "nodes": [
+    {
+      "id": "legal-web-ui",
+      "type": "frontend",
+      "label": "Legal Web UI",
+      "generic_name": "Legal Dashboard",
+      "ports": [
+        {
+          "id": "out-http",
+          "label": "HTTP/WS Request",
+          "side": "right"
+        },
+        {
+          "id": "in-ws",
+          "label": "WS Stream",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "React-based dashboard with real-time updates and a PDF viewer that highlights source text using bounding box coordinates provided by the AI.",
+        "tech": [
+          "React",
+          "TypeScript",
+          "Tailwind CSS",
+          "Vite",
+          "Socket.io-client",
+          "react-pdf-viewer"
+        ]
+      }
+    },
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "label": "API Gateway",
+      "generic_name": "API Gateway",
+      "ports": [
+        {
+          "id": "in-client",
+          "label": "Client In",
+          "side": "left"
+        },
+        {
+          "id": "out-services",
+          "label": "Services Out",
+          "side": "right"
+        },
+        {
+          "id": "in-updates",
+          "label": "Status Updates",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Handles request routing and injects tenant context (tenant_id) into every downstream request header.",
+        "tech": [
+          "Kong Gateway",
+          "Nginx",
+          "JWT Validation",
+          "Socket.io"
+        ]
+      }
+    },
+    {
+      "id": "mastra-orchestrator",
+      "type": "service",
+      "label": "Mastra Orchestrator",
+      "generic_name": "Workflow Orchestrator",
+      "ports": [
+        {
+          "id": "in-gw",
+          "label": "API Ingest",
+          "side": "left"
+        },
+        {
+          "id": "out-task",
+          "label": "Task Dispatch",
+          "side": "bottom"
+        },
+        {
+          "id": "out-llm",
+          "label": "LLM Request",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Orchestrates legal workflows, performing Hybrid Search (Dense + Sparse) with Reciprocal Rank Fusion (RRF) and Cohere Reranking for maximum precision.",
+        "tech": [
+          "Python",
+          "Mastra",
+          "LangGraph",
+          "Cohere Rerank",
+          "Reciprocal Rank Fusion (RRF)",
+          "Neo4j-Driver",
+          "Mem0 SDK"
+        ]
+      }
+    },
+    {
+      "id": "doc-processor",
+      "type": "service",
+      "label": "Hierarchical Doc Processor",
+      "generic_name": "Document Processor",
+      "ports": [
+        {
+          "id": "in",
+          "label": "In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Implements hierarchical (parent-child) chunking to preserve structural context (Article > Section > Clause) and maps spatial coordinates for citations. Granular child chunks are indexed for precision, while parent chunks provide full legal context.",
+        "tech": [
+          "Python",
+          "Unstructured.io",
+          "AWS Textract",
+          "PyMuPDF",
+          "LlamaIndex",
+          "PDFPlumber"
+        ]
+      }
+    },
+    {
+      "id": "qdrant-db",
+      "type": "database",
+      "label": "Qdrant Vector DB",
+      "generic_name": "Vector Database",
+      "ports": [
+        {
+          "id": "in-mastra",
+          "label": "Search/Upsert",
+          "side": "left"
+        },
+        {
+          "id": "in-eval",
+          "label": "Retrieval Check",
+          "side": "top"
+        }
+      ],
+      "data": {
+        "tech": [
+          "Qdrant",
+          "Namespace Isolation",
+          "Payload Filtering",
+          "BM25 Sparse Vectors",
+          "Hybrid Search"
+        ]
+      }
+    },
+    {
+      "id": "enkrypt-guardrails",
+      "type": "service",
+      "label": "Enkrypt AI Guardrails",
+      "generic_name": "Safety Guardrails",
+      "ports": [
+        {
+          "id": "in",
+          "label": "llm-response",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "validated-response",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Enforces legal compliance, prevents unauthorized advice, and performs hallucination checks by verifying LLM claims against source citations.",
+        "tech": [
+          "Enkrypt AI",
+          "Python"
+        ]
+      }
+    },
+    {
+      "id": "llm-engine",
+      "type": "service",
+      "label": "LLM Engine",
+      "generic_name": "LLM Engine",
+      "ports": [
+        {
+          "id": "in-mastra",
+          "label": "Inference",
+          "side": "left"
+        },
+        {
+          "id": "in-eval",
+          "label": "Judge Inference",
+          "side": "bottom"
+        }
+      ],
+      "data": {
+        "generic_name": "LLM Engine",
+        "description": "Large Language Model for generating legal summaries and answering questions.",
+        "tech": [
+          "OpenAI GPT-4o",
+          "Anthropic Claude 3.5"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "audit-db",
+      "type": "database",
+      "label": "audit-db",
+      "generic_name": "main database",
+      "ports": [
+        {
+          "id": "in-mastra",
+          "label": "Audit Logs",
+          "side": "left"
+        },
+        {
+          "id": "in-eval",
+          "label": "Eval Data",
+          "side": "top"
+        }
+      ],
+      "data": {
+        "description": "Relational database for logs and metadata, utilizing Postgres Row-Level Security (RLS) for tenant isolation.",
+        "tech": [
+          "PostgreSQL",
+          "RLS",
+          "pgAudit"
+        ]
+      }
+    },
+    {
+      "id": "task-queue",
+      "type": "message-queue",
+      "label": "Task Queue",
+      "generic_name": "Task Queue",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Enqueue",
+          "side": "left"
+        },
+        {
+          "id": "out-eval",
+          "label": "Eval Tasks",
+          "side": "right"
+        },
+        {
+          "id": "out-doc",
+          "label": "Doc Tasks",
+          "side": "bottom"
+        }
+      ],
+      "data": {
+        "description": "Asynchronous task queue for long-running document ingestion and OCR tasks.",
+        "tech": [
+          "Redis",
+          "BullMQ",
+          "Celery"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "blob-storage",
+      "type": "database",
+      "label": "Blob Storage",
+      "generic_name": "Object Storage",
+      "ports": [
+        {
+          "id": "in",
+          "label": "In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Object storage with strict IAM policies and Signed URLs to provide air-gapped access to raw legal files.",
+        "tech": [
+          "Google Cloud Storage",
+          "IAM Roles",
+          "Signed URLs",
+          "KMS Encryption"
+        ]
+      }
+    },
+    {
+      "id": "neo4j-db",
+      "type": "database",
+      "label": "Neo4j Graph DB",
+      "generic_name": "Graph Database",
+      "ports": [
+        {
+          "id": "in",
+          "label": "In",
+          "side": "left"
+        }
+      ],
+      "data": {
+        "description": "Graph database enforcing Row-Level Security (RLS) or separate database instances per tenant for relational isolation.",
+        "tech": [
+          "Neo4j 5.x",
+          "Cypher",
+          "RLS Policies",
+          "Multi-database"
+        ]
+      }
+    },
+    {
+      "id": "agent-memory-db",
+      "type": "database",
+      "label": "Agent Memory",
+      "generic_name": "Persistent Memory Store",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Query/Store",
+          "side": "left"
+        }
+      ],
+      "data": {
+        "description": "Persistent memory store isolated by tenant_id to prevent cross-tenant context leakage.",
+        "tech": [
+          "Mem0",
+          "Postgres RLS",
+          "LangGraph Checkpointer"
+        ]
+      }
+    },
+    {
+      "id": "tenant-manager",
+      "type": "service",
+      "label": "Tenant Manager",
+      "generic_name": "Tenant Management Service",
+      "ports": [
+        {
+          "id": "in-api",
+          "label": "API In",
+          "side": "left"
+        },
+        {
+          "id": "out-db",
+          "label": "DB Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Manages tenant lifecycle, isolation policies, and cryptographic keys for data encryption at rest.",
+        "tech": [
+          "Python",
+          "FastAPI",
+          "Auth0/Okta",
+          "Vault"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "semantic-cache",
+      "type": "cache",
+      "label": "Semantic Cache",
+      "generic_name": "Semantic Cache",
+      "ports": [
+        {
+          "id": "in-query",
+          "label": "Query In",
+          "side": "left"
+        },
+        {
+          "id": "out-hit",
+          "label": "Cache Hit",
+          "side": "right"
+        },
+        {
+          "id": "out-miss",
+          "label": "Cache Miss",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Stores semantically similar query-response pairs to reduce LLM latency and costs.",
+        "tech": [
+          "Redis",
+          "GPTCache",
+          "Semantic Similarity Matching"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "eval-worker",
+      "type": "service",
+      "label": "Evaluation Worker",
+      "generic_name": "LLM-as-a-Judge Service",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Task Ingest",
+          "side": "left"
+        },
+        {
+          "id": "db-query",
+          "label": "DB Access",
+          "side": "right"
+        },
+        {
+          "id": "llm-call",
+          "label": "Judge Call",
+          "side": "top"
+        }
+      ],
+      "data": {
+        "description": "Asynchronous evaluation service that uses LLM-as-a-Judge to grade retrieval faithfulness and answer relevance based on user feedback.",
+        "tech": [
+          "Python",
+          "Ragas",
+          "Arize Phoenix",
+          "LLM-as-a-Judge",
+          "LangChain Evaluation"
+        ],
+        "isolated": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "ui-to-gw-ws",
+      "source": {
+        "nodeId": "legal-web-ui",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "in"
+      },
+      "type": "websocket",
+      "label": "Real-time Updates"
+    },
+    {
+      "id": "gw-to-mastra",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Commands/Queries"
+    },
+    {
+      "id": "mastra-to-proc-req",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "proc-out"
+      },
+      "target": {
+        "nodeId": "doc-processor",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Process Request"
+    },
+    {
+      "id": "proc-to-mastra-res",
+      "source": {
+        "nodeId": "doc-processor",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "proc-in"
+      },
+      "type": "internal-api",
+      "label": "Processed Chunks"
+    },
+    {
+      "id": "mastra-to-qdrant",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "qdrant-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Vector Search"
+    },
+    {
+      "id": "mastra-to-llm",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out-llm"
+      },
+      "target": {
+        "nodeId": "llm-engine",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Generate Prompt"
+    },
+    {
+      "id": "llm-to-mastra-res",
+      "source": {
+        "nodeId": "llm-engine",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "llm-in"
+      },
+      "type": "internal-api",
+      "label": "LLM Response"
+    },
+    {
+      "id": "mastra-to-guard",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "enkrypt-guardrails",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Safety Check"
+    },
+    {
+      "id": "enkrypt-to-mastra",
+      "source": {
+        "nodeId": "enkrypt-guardrails",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "in-guardrails"
+      },
+      "type": "internal-api",
+      "label": "Guardrail Status"
+    },
+    {
+      "id": "mastra-to-task-eval",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out-task"
+      },
+      "target": {
+        "nodeId": "task-queue",
+        "portId": "in"
+      },
+      "type": "async-event",
+      "label": "Telemetry Dispatch"
+    },
+    {
+      "id": "queue-to-proc",
+      "source": {
+        "nodeId": "task-queue",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "doc-processor",
+        "portId": "in"
+      },
+      "type": "async-event",
+      "label": "Process Docs"
+    },
+    {
+      "id": "proc-to-qdrant",
+      "source": {
+        "nodeId": "doc-processor",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "qdrant-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Index Chunks"
+    },
+    {
+      "id": "mastra-to-audit",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "audit-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Log Actions"
+    },
+    {
+      "id": "guard-to-llm",
+      "source": {
+        "nodeId": "enkrypt-guardrails",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "llm-engine",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Validated Prompt"
+    },
+    {
+      "id": "gw-to-ui-res",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "out-client"
+      },
+      "target": {
+        "nodeId": "legal-web-ui",
+        "portId": "in-res"
+      },
+      "type": "http",
+      "label": null
+    },
+    {
+      "id": "orch-to-gw-status",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out-ws-push"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "in-updates"
+      },
+      "type": "internal-api",
+      "label": "Push Status"
+    },
+    {
+      "id": "llm-to-guard",
+      "source": {
+        "nodeId": "llm-engine",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "enkrypt-guardrails",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Hallucination Check"
+    },
+    {
+      "id": "mastra-to-blob",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out-blob"
+      },
+      "target": {
+        "nodeId": "blob-storage",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Upload Raw Docs"
+    },
+    {
+      "id": "proc-to-blob",
+      "source": {
+        "nodeId": "doc-processor",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "blob-storage",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Store Raw/Coords"
+    },
+    {
+      "id": "processor-to-neo4j",
+      "source": {
+        "nodeId": "doc-processor",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "neo4j-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "index relations"
+    },
+    {
+      "id": "mastra-to-neo4j",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "neo4j-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Graph Traversal"
+    },
+    {
+      "id": "mastra-to-mem",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "agent-memory-db",
+        "portId": "in"
+      },
+      "type": "database",
+      "label": "Persist Context"
+    },
+    {
+      "id": "api-to-tenant-mgr",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "in-api"
+      },
+      "target": {
+        "nodeId": "tenant-manager",
+        "portId": "in-api"
+      },
+      "type": "internal-api",
+      "label": "Validate Tenant"
+    },
+    {
+      "id": "orchestrator-to-tenant-mgr",
+      "source": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "in-api"
+      },
+      "target": {
+        "nodeId": "tenant-manager",
+        "portId": "in-api"
+      },
+      "type": "internal-api",
+      "label": "Fetch Tenant Config"
+    },
+    {
+      "id": "tenant-mgr-to-audit-db",
+      "source": {
+        "nodeId": "tenant-manager",
+        "portId": "out-db"
+      },
+      "target": {
+        "nodeId": "audit-db",
+        "portId": "in-db"
+      },
+      "type": "database",
+      "label": "Tenant Metadata"
+    },
+    {
+      "id": "guardrails-to-cache",
+      "source": {
+        "nodeId": "enkrypt-guardrails",
+        "portId": "out-safe-query"
+      },
+      "target": {
+        "nodeId": "semantic-cache",
+        "portId": "in-query"
+      },
+      "type": "cache",
+      "label": "Check Cache"
+    },
+    {
+      "id": "cache-to-llm",
+      "source": {
+        "nodeId": "semantic-cache",
+        "portId": "out-miss"
+      },
+      "target": {
+        "nodeId": "llm-engine",
+        "portId": "in-query"
+      },
+      "type": "internal-api",
+      "label": "LLM Request (Miss)"
+    },
+    {
+      "id": "cache-to-orchestrator-hit",
+      "source": {
+        "nodeId": "semantic-cache",
+        "portId": "out-hit"
+      },
+      "target": {
+        "nodeId": "mastra-orchestrator",
+        "portId": "in-response"
+      },
+      "type": "internal-api",
+      "label": "Return Cached Response"
+    },
+    {
+      "id": "llm-to-cache-populate",
+      "source": {
+        "nodeId": "llm-engine",
+        "portId": "out-response"
+      },
+      "target": {
+        "nodeId": "semantic-cache",
+        "portId": "in-query"
+      },
+      "type": "cache",
+      "label": "Populate Cache"
+    },
+    {
+      "id": "task-to-eval-worker",
+      "source": {
+        "nodeId": "task-queue",
+        "portId": "out-eval"
+      },
+      "target": {
+        "nodeId": "eval-worker",
+        "portId": "in"
+      },
+      "type": "async-event",
+      "label": "Process Feedback"
+    },
+    {
+      "id": "eval-to-audit-db",
+      "source": {
+        "nodeId": "eval-worker",
+        "portId": "db-query"
+      },
+      "target": {
+        "nodeId": "audit-db",
+        "portId": "in-eval"
+      },
+      "type": "database",
+      "label": "Fetch Context/Store Grade"
+    },
+    {
+      "id": "eval-to-qdrant-db",
+      "source": {
+        "nodeId": "eval-worker",
+        "portId": "db-query"
+      },
+      "target": {
+        "nodeId": "qdrant-db",
+        "portId": "in-eval"
+      },
+      "type": "database",
+      "label": "Verify Retrieval"
+    },
+    {
+      "id": "eval-to-llm-judge",
+      "source": {
+        "nodeId": "eval-worker",
+        "portId": "llm-call"
+      },
+      "target": {
+        "nodeId": "llm-engine",
+        "portId": "in-eval"
+      },
+      "type": "internal-api",
+      "label": "Judge Request"
+    }
+  ],
+  "groups": [
+    {
+      "children": [
+        "legal-web-ui"
+      ],
+      "id": "frontend-layer",
+      "label": "Frontend Layer"
+    },
+    {
+      "children": [
+        "api-gateway"
+      ],
+      "id": "edge-layer",
+      "label": "Edge & API Layer"
+    },
+    {
+      "children": [
+        "mastra-orchestrator",
+        "tenant-manager",
+        "semantic-cache"
+      ],
+      "id": "orchestration-layer",
+      "label": "Orchestration & Control"
+    },
+    {
+      "children": [
+        "doc-processor",
+        "eval-worker",
+        "enkrypt-guardrails",
+        "llm-engine"
+      ],
+      "id": "processing-layer",
+      "label": "AI & Processing Layer"
+    },
+    {
+      "children": [
+        "qdrant-db",
+        "audit-db",
+        "neo4j-db",
+        "agent-memory-db",
+        "blob-storage",
+        "task-queue"
+      ],
+      "id": "data-layer",
+      "label": "Data & Persistence Layer"
+    }
+  ],
+  "metadata": {}
+}
